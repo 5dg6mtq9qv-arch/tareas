@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Administración{% endblock %}
+{% block content %}
+<section class="form-card">
+  <a class="back" href="{% url 'control_panel' %}">← Volver a administración</a>
+  <h1>{{ title }}</h1>
+  <form method="post" class="stacked-form">{% csrf_token %}{{ form.as_p }}
+    <div class="form-actions"><a class="button secondary" href="{% url 'control_panel' %}">Cancelar</a><button class="button primary">Guardar</button></div>
+  </form>
+</section>
+{% endblock %}

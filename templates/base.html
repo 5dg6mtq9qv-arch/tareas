@@ -1,0 +1,25 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Tareas{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}"><span>✓</span> Tareas</a>
+    {% if user.is_authenticated %}
+      <nav>
+        <a href="{% url 'notification_preferences' %}">Notificaciones</a>
+        {% if user.is_superuser %}<a href="{% url 'control_panel' %}">Administración</a>{% elif user.is_staff %}<a href="{% url 'admin:index' %}">Administración</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Salir</button></form>
+      </nav>
+    {% endif %}
+  </header>
+  {% if messages %}<div class="messages">{% for message in messages %}<div>{{ message }}</div>{% endfor %}</div>{% endif %}
+  <main>{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

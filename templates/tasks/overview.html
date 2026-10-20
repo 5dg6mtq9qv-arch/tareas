@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Mis pendientes · Tareas{% endblock %}
+{% block content %}
+<section class="overview">
+  <div class="overview-head">
+    <div>
+      <span class="eyebrow">{{ now|date:"l, d \d\e F" }}</span>
+      <h1>Hola, {{ user.first_name|default:user.username }}</h1>
+      <p>{% if overdue_count %}Tienes {{ overdue_count }} tarea{{ overdue_count|pluralize }} vencida{{ overdue_count|pluralize }} que requiere{{ overdue_count|pluralize:"n" }} atención.{% elif pending_count %}Tienes {{ pending_count }} pendiente{{ pending_count|pluralize }}. Organicemos el día.{% else %}Todo está al día. Buen trabajo.{% endif %}</p>
+    </div>
+    <div class="overview-actions"><a class="button secondary" href="{% url 'board_create' %}">Nueva lista</a><a class="button primary" href="{% url 'task_create' %}">＋ Nueva tarea</a></div>
+  </div>
+
+  <div class="health-strip">
+    <div class="health-progress"><div class="ring" style="--progress:{{ progress_percent }}"><strong>{{ progress_percent }}%</strong></div><div><strong>Progreso general</strong><span>{{ completed_tasks }} de {{ total_tasks }} tareas completadas</span></div></div>
+    <div class="health-stat"><span class="health-icon pending-icon">○</span><div><strong>{{ pending_count }}</strong><span>Pendientes</span></div></div>
+    <div class="health-stat {% if due_soon_count %}warning{% endif %}"><span class="health-icon">◷</span><div><strong>{{ due_soon_count }}</strong><span>Vencen en 48 horas</span></div></div>
+    <div class="health-stat {% if overdue_count %}danger{% endif %}"><span class="health-icon">!</span><div><strong>{{ overdue_count }}</strong><span>Fuera de tiempo</span></div></div>
+  </div>
+
+  <div class="dashboard-grid">
+    <section class="pending-panel">
+      <div class="panel-heading"><div><h2>Mis pendientes</h2><p>Ordenados por la fecha que requiere atención primero.</p></div><span>{{ pending_count }}</span></div>
+      <div class="pending-list">
+        {% for task in pending_preview %}
+        <div class="pending-row {% if task.is_overdue %}is-late{% endif %}">
+          {% if task.activity_count %}<a class="task-check subtasks-check" href="{% url 'task_detail' task.id %}" title="Completa sus subtareas"></a>{% else %}<form method="post" action="{% url 'task_complete' task.id %}">{% csrf_token %}<button class="task-check" title="Marcar como completada"></button></form>{% endif %}
+          <a class="pending-main" href="{% url 'task_detail' task.id %}">
+            <strong>{{ task.title }}</strong>
+            <span><i style="background:{{ task.board.color }}"></i>{{ task.board.name }} · {{ task.column.name }}{% if task.activity_count %} · {{ task.activity_completed }}/{{ task.activity_count }} subtareas{% endif %}</span>
+          </a>
+          <div class="pending-meta">
+            <span class="priority {{ task.priority }}">{{ task.get_priority_display }}</span>
+            {% if task.due_at %}<time class="{% if task.is_overdue %}late{% endif %}">{% if task.is_overdue %}Venció hace {{ task.due_at|timesince }}{% else %}Vence en {{ task.due_at|timeuntil }}{% endif %}</time>{% else %}<time>Sin fecha límite</time>{% endif %}
+          </div>
+        </div>
+        {% empty %}<div class="empty-state"><span>✓</span><h3>No tienes pendientes</h3><p>Puedes crear una tarea nueva o revisar tus listas.</p></div>{% endfor %}
+      </div>
+    </section>
+
+    <aside class="attention-panel">
+      <div class="panel-heading"><div><h2>Atención</h2><p>Lo que puede quedarse sin tiempo.</p></div></div>
+      {% if overdue %}<h3 class="attention-label late">Vencidas</h3>{% endif %}
+      {% for task in overdue %}<a class="attention-task" href="{% url 'task_detail' task.id %}"><div><strong>{{ task.title }}</strong><small>{{ task.board.name }}</small></div><time>Hace {{ task.due_at|timesince }}</time></a>{% endfor %}
+      {% if due_soon %}<h3 class="attention-label soon">Próximas 48 horas</h3>{% endif %}
+      {% for task in due_soon %}<a class="attention-task" href="{% url 'task_detail' task.id %}"><div><strong>{{ task.title }}</strong><small>{{ task.board.name }}</small></div><time>En {{ task.due_at|timeuntil }}</time></a>{% endfor %}
+      {% if not overdue and not due_soon %}<div class="calm-state"><span>✓</span><strong>Sin urgencias</strong><p>No hay entregas en riesgo durante las próximas 48 horas.</p></div>{% endif %}
+      <a class="notification-link" href="{% url 'notification_preferences' %}">⚙ Configurar alertas</a>
+    </aside>
+  </div>
+
+  <div class="section-title"><div><h2>Mis listas y trabajos</h2><p>Abre una lista para organizar sus tareas en el Kanban.</p></div><a href="{% url 'board_create' %}">＋ Crear lista</a></div>
+  <div class="list-grid">
+    {% for board in boards %}
+    <a class="list-card" href="{% url 'board_detail' board.id %}">
+      <div class="list-card-head"><span class="list-color" style="background:{{ board.color }}"></span><h3>{{ board.name }}</h3><span>→</span></div>
+      <p>{{ board.description|default:"Sin descripción" }}</p>
+      <div class="progress"><span style="width:{% if board.task_count %}{% widthratio board.completed_count board.task_count 100 %}{% else %}0{% endif %}%"></span></div>
+      <footer><span>{{ board.completed_count }} de {{ board.task_count }} completadas</span><strong>{% if board.task_count %}{% widthratio board.completed_count board.task_count 100 %}%{% else %}0%{% endif %}</strong></footer>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

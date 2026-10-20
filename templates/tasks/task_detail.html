@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} · Tareas{% endblock %}
+{% block content %}
+<section class="task-detail-page">
+  <a class="back" href="{% url 'board_detail' task.board_id %}">← Volver a {{ task.board.name }}</a>
+  <div class="task-detail-card">
+    <header class="detail-head">
+      <div><span class="priority {{ task.priority }}">{{ task.get_priority_display }}</span><h1>{{ task.title }}</h1><p>{{ task.board.name }} · {{ task.column.name }}</p></div>
+      <a class="button secondary" href="{% url 'task_edit' task.id %}">Editar tarea</a>
+    </header>
+    {% if task.description %}<div class="detail-description">{{ task.description|linebreaks }}</div>{% endif %}
+    <div class="detail-dates">
+      <div><span>Fecha de inicio</span><strong>{{ task.start_at|date:"d M Y, H:i"|default:"Sin fecha" }}</strong></div>
+      <div><span>Fecha límite</span><strong>{{ task.due_at|date:"d M Y, H:i"|default:"Sin fecha" }}</strong></div>
+    </div>
+
+    <section class="activities">
+      <div class="activities-head"><div><h2>Subtareas</h2><p>{{ activity_completed }} de {{ activity_total }} completadas</p></div></div>
+      {% if activity_total %}<div class="progress"><span style="width:{% widthratio activity_completed activity_total 100 %}%"></span></div>{% endif %}
+      <form class="activity-add" method="post" action="{% url 'activity_create' task.id %}">{% csrf_token %}{{ activity_form.title }}<button class="button primary">Agregar</button></form>
+      <div class="activity-list">
+        {% for activity in task.activities.all %}
+        <div class="activity-row {% if activity.completed %}done{% endif %}">
+          <form method="post" action="{% url 'activity_toggle' activity.id %}">{% csrf_token %}<button class="check" title="Cambiar estado">{% if activity.completed %}✓{% endif %}</button></form>
+          <span>{{ activity.title }}</span>
+          <form method="post" action="{% url 'activity_delete' activity.id %}">{% csrf_token %}<button class="activity-delete" title="Eliminar">×</button></form>
+        </div>
+        {% empty %}<p class="muted">Divide esta tarea en subtareas pequeñas y concretas. Si no las necesita, puedes completar la tarea directamente desde el panel.</p>{% endfor %}
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

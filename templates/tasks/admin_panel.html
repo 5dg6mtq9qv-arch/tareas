@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Administración · Tareas{% endblock %}
+{% block content %}
+<section class="overview admin-area">
+  <div class="overview-head">
+    <div><span class="eyebrow">Administración</span><h1>Centro de control</h1><p>Usuarios y canales de alerta del sistema.</p></div>
+    <a class="button primary" href="{% url 'managed_user_create' %}">＋ Crear usuario</a>
+  </div>
+  <div class="admin-grid">
+    <section class="admin-card">
+      <div class="panel-heading"><div><h2>Usuarios</h2><p>Gestiona a quién llegan las alertas.</p></div></div>
+      <div class="admin-user-list">
+        {% for account in users %}
+          <div class="admin-user"><div><strong>{{ account.username }}</strong><small>{{ account.email|default:"Sin correo" }}</small></div><a href="{% url 'managed_user_alerts' account.pk %}">Configurar alertas</a></div>
+        {% endfor %}
+      </div>
+      <a class="admin-secondary-link" href="{% url 'admin:index' %}">Abrir Django Admin para gestión avanzada →</a>
+    </section>
+    <section class="admin-card">
+      <div class="panel-heading"><div><h2>Correo y Telegram</h2><p>Configuración global de los envíos.</p></div></div>
+      <form method="post" action="{% url 'save_notification_config' %}" class="stacked-form">{% csrf_token %}
+        {{ config_form.as_p }}
+        <button class="button primary" type="submit">Guardar configuración</button>
+      </form>
+      <p class="admin-note">Los recordatorios se procesan con <code>python manage.py send_due_alerts</code>. Para enviarlos automáticamente, programa ese comando cada cinco minutos.</p>
+    </section>
+  </div>
+</section>
+{% endblock %}

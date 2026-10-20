@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesión · Tareas{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <div class="auth-icon">✓</div>
+  <h1>Bienvenido</h1>
+  <p>Organiza tus tareas y proyectos en un solo lugar.</p>
+  <form method="post" class="stacked-form">{% csrf_token %}
+    {{ form.as_p }}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <button class="button primary" type="submit">Iniciar sesión</button>
+  </form>
+</section>
+{% endblock %}
