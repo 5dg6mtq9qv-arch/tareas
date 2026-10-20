@@ -1,11 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
 
 from .models import Activity, Board, Column, NotificationConfiguration, NotificationLog, NotificationSettings, Task
+from .progress import task_progress
 
 
 class UserIsolationTests(TestCase):
@@ -154,6 +155,46 @@ class UserIsolationTests(TestCase):
         self.task.refresh_from_db()
         self.assertEqual(self.task.column, progress)
         self.assertIsNone(self.task.completed_at)
+
+    def test_form_move_with_csrf_changes_state_and_progress(self):
+        progress = Column.objects.create(board=self.alice_board, name="En progreso", position=1)
+        done = Column.objects.create(board=self.alice_board, name="Completado", position=2)
+        first = Activity.objects.create(task=self.task, title="Primera")
+        Activity.objects.create(task=self.task, title="Segunda")
+        browser = Client(enforce_csrf_checks=True)
+        browser.force_login(self.alice)
+        page = browser.get(reverse("board_detail", args=[self.alice_board.pk]))
+        token = browser.cookies["csrftoken"].value
+
+        response = browser.post(
+            reverse("activity_move", args=[first.pk]),
+            {"column_id": progress.pk, "csrfmiddlewaretoken": token},
+        )
+
+        self.assertEqual(page.status_code, 200)
+        self.assertRedirects(response, reverse("board_detail", args=[self.alice_board.pk]))
+        first.refresh_from_db()
+        self.assertEqual(first.column, progress)
+        self.assertEqual(
+            task_progress(self.task, [self.alice_column, progress, done]), 25
+        )
+        updated = browser.get(reverse("board_detail", args=[self.alice_board.pk]))
+        self.assertContains(updated, 'aria-valuenow="25"')
+
+    def test_simple_task_in_progress_counts_as_partial_progress(self):
+        progress = Column.objects.create(board=self.alice_board, name="En progreso", position=1)
+        done = Column.objects.create(board=self.alice_board, name="Completado", position=2)
+        self.client.force_login(self.alice)
+
+        response = self.client.post(
+            reverse("task_move", args=[self.task.pk]), {"column_id": progress.pk}
+        )
+
+        self.assertRedirects(response, reverse("board_detail", args=[self.alice_board.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(task_progress(self.task, [self.alice_column, progress, done]), 50)
+        overview = self.client.get(reverse("dashboard"))
+        self.assertEqual(overview.context["progress_percent"], 50)
 
     def test_subtask_cannot_move_to_another_users_column(self):
         subtask = Activity.objects.create(task=self.task, title="Privada")

@@ -13,7 +13,9 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-El panel estará en `http://127.0.0.1:8000/`. El enlace **Administración** abre el centro de control de la aplicación para crear usuarios y configurar correo y Telegram. Django Admin sigue disponible en `http://127.0.0.1:8000/admin/` para gestión avanzada. Al entrar por primera vez, cada usuario recibe su propia lista con las columnas Pendiente, En progreso y Completado. Las subtareas se mueven de forma independiente en el Kanban; al terminar todas, se completa la tarea principal.
+El panel estará en `http://127.0.0.1:8000/`. El enlace **Administración** abre el centro de control de la aplicación para crear usuarios y configurar correo y Telegram. Django Admin sigue disponible en `http://127.0.0.1:8000/admin/` para gestión avanzada. Al entrar por primera vez, cada usuario recibe su propia lista con las columnas Pendiente, En progreso y Completado. Arrastra cada tarjeta a otro estado con ratón o con el dedo; en pantallas pequeñas aparecen los destinos al iniciar el gesto. Las subtareas se mueven de forma independiente en el Kanban y su avance se refleja en el panel general. Al terminar todas, se completa la tarea principal. El selector de estado queda disponible para teclado y accesibilidad.
+
+La interfaz incluye el CSS local de [Tabler 1.4.0](https://github.com/tabler/tabler), distribuido bajo licencia MIT en `static/vendor/tabler/LICENSE`.
 
 La conexión se lee de `.env`. El archivo `.env.example` documenta todas las variables y `.env` está excluido de Git.
 

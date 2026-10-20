@@ -2,67 +2,99 @@
 {% load static %}
 {% block title %}{{ board.name }} · Tareas{% endblock %}
 {% block content %}
-<div class="layout">
-  <aside class="sidebar">
-    <div class="sidebar-title"><span>Listas</span><a href="{% url 'board_create' %}" title="Nueva lista">＋</a></div>
+<div class="workspace-shell">
+  <aside class="work-sidebar" id="list-sidebar">
+    <div class="work-sidebar-heading"><span>Mis listas</span><a href="{% url 'board_create' %}" aria-label="Crear lista">＋</a></div>
     {% for item in boards %}
-      <a class="board-link {% if item.id == board.id %}active{% endif %}" href="{% url 'board_detail' item.id %}">
-        <i style="background:{{ item.color }}"></i><span>{{ item.name }}</span><small>{{ item.task_count }}</small>
+      <a class="work-list-link {% if item.id == board.id %}is-active{% endif %}" href="{% url 'board_detail' item.id %}">
+        <span class="work-list-dot" style="background:{{ item.color }}"></span><span>{{ item.name }}</span><small>{{ item.task_count }}</small>
       </a>
     {% endfor %}
   </aside>
-  <section class="workspace">
-    <div class="workspace-head">
-      <div><a class="back" href="{% url 'dashboard' %}">← Panel general</a><h1>{{ board.name }}</h1><p>{{ board.description|default:"Tus tareas y sus subtareas" }}</p></div>
+  <section class="work-content">
+    <div class="work-titlebar">
+      <div>
+        <a class="work-back" href="{% url 'dashboard' %}">← Panel general</a>
+        <div class="work-titleline"><span class="work-accent" style="background:{{ board.color }}"></span><h1>{{ board.name }}</h1></div>
+        <p>{{ board.description|default:"Organiza tu trabajo paso a paso." }}</p>
+      </div>
       <a class="button primary" href="{% url 'task_create' %}?tablero={{ board.id }}">＋ Nueva tarea</a>
     </div>
-    <form class="search" method="get"><input name="q" value="{{ query }}" placeholder="Buscar tarea o subtarea…"></form>
-    <div class="kanban-board" style="--status-count:{{ columns|length }}">
-      <div class="board-label">Tareas y subtareas</div>
-      {% for column in columns %}
-        <div class="board-status-head"><span class="dot" style="background:{{ column.color }}"></span>{{ column.name }}</div>
-      {% endfor %}
+
+    <div class="work-summary">
+      <div class="work-summary-copy"><span>Avance de esta lista</span><strong>{{ board_progress }}%</strong></div>
+      <div class="work-meter" role="progressbar" aria-valuenow="{{ board_progress }}" aria-valuemin="0" aria-valuemax="100" aria-label="Avance de {{ board.name }}"><span style="width:{{ board_progress }}%"></span></div>
+      <small>{{ board_completed_count }} de {{ board_task_count }} tareas terminadas</small>
+    </div>
+
+    <div class="work-toolbar">
+      <form class="work-search" method="get">
+        <span aria-hidden="true">⌕</span><input name="q" value="{{ query }}" placeholder="Buscar tareas o subtareas…" aria-label="Buscar tareas o subtareas">
+        {% if query %}<a href="{% url 'board_detail' board.id %}" aria-label="Limpiar búsqueda">×</a>{% endif %}
+      </form>
+      <span class="work-help">Arrastra cada tarjeta al estado que quieras.</span>
+    </div>
+
+    <div class="work-items">
       {% for task in task_rows %}
-        {% if task.subtask_rows %}
-          <div class="task-group-head">
-            <div class="task-group-title"><span class="priority {{ task.priority }}">{{ task.get_priority_display }}</span><a href="{% url 'task_detail' task.id %}">{{ task.title }}</a><small>{{ task.column.name }}</small></div>
-            <div class="task-group-actions"><a href="{% url 'task_detail' task.id %}">＋ Subtarea</a><a href="{% url 'task_edit' task.id %}">Editar</a></div>
+      <section class="work-task">
+        <header class="work-task-heading">
+          <div class="work-task-main">
+            <span class="priority {{ task.priority }}">{{ task.get_priority_display }}</span>
+            <a href="{% url 'task_detail' task.id %}">{{ task.title }}</a>
+            <span class="work-state">{{ task.column.name }}</span>
           </div>
+          <div class="work-task-actions">
+            {% if task.subtask_rows %}<span class="work-fraction">{{ task.progress_percent }}%</span>{% endif %}
+            <a href="{% url 'task_detail' task.id %}">＋ Subtarea</a>
+            <a href="{% url 'task_edit' task.id %}" aria-label="Editar {{ task.title }}">Editar</a>
+          </div>
+        </header>
+        {% if task.subtask_rows %}
+          <div class="task-meter" role="progressbar" aria-valuenow="{{ task.progress_percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Avance de {{ task.title }}"><span style="width:{{ task.progress_percent }}%"></span></div>
+        {% endif %}
+        <div class="work-stage-head" style="--status-count:{{ columns|length }}">
+          <span>Trabajo</span>
+          {% for column in columns %}<span><i style="background:{{ column.color }}"></i>{{ column.name }}</span>{% endfor %}
+        </div>
+        {% if task.subtask_rows %}
           {% for subtask in task.subtask_rows %}
-            <div class="row-label"><span class="row-indent">↳</span><span>{{ subtask.title }}</span></div>
-            {% for cell in subtask.cells %}
-              <div class="board-cell drop-cell" data-column="{{ cell.column.id }}" data-row="subtask-{{ subtask.id }}">
+            <div class="work-flow-row" style="--status-count:{{ columns|length }}">
+              <div class="work-row-label"><span class="work-row-branch">↳</span><strong>{{ subtask.title }}</strong></div>
+              {% for cell in subtask.cells %}
+                <div class="work-drop-cell {% if cell.active %}is-occupied{% else %}is-empty{% endif %}" data-column="{{ cell.column.id }}" data-state="{{ cell.column.name }}" data-row="subtask-{{ subtask.id }}">
+                  {% if cell.active %}
+                    <div class="work-ticket {% if subtask.completed %}is-done{% endif %}" data-kind="subtask" data-id="{{ subtask.id }}" data-row="subtask-{{ subtask.id }}">
+                      <span class="work-drag-handle" aria-hidden="true">⠿</span>
+                      <span class="work-ticket-name">{{ subtask.title }}</span>
+                      <form method="post" action="{% url 'activity_move' subtask.id %}" class="work-status-form">{% csrf_token %}<select name="column_id" aria-label="Estado de {{ subtask.title }}" onchange="this.form.requestSubmit()">{% for option in columns %}<option value="{{ option.id }}" {% if option.id == subtask.column_id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></form>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="work-flow-row" style="--status-count:{{ columns|length }}">
+            <div class="work-row-label"><strong>{{ task.title }}</strong><small>Tarea simple</small></div>
+            {% for cell in task.cells %}
+              <div class="work-drop-cell {% if cell.active %}is-occupied{% else %}is-empty{% endif %}" data-column="{{ cell.column.id }}" data-state="{{ cell.column.name }}" data-row="task-{{ task.id }}">
                 {% if cell.active %}
-                  <div class="board-item subtask-item {% if subtask.completed %}done{% endif %}" draggable="true" data-kind="subtask" data-id="{{ subtask.id }}" data-row="subtask-{{ subtask.id }}">
-                    <span class="drag-handle" aria-hidden="true">⋮⋮</span>
-                    <span>{{ subtask.title }}</span>
-                    <form method="post" action="{% url 'activity_move' subtask.id %}" class="status-form">{% csrf_token %}<select name="column_id" aria-label="Estado de {{ subtask.title }}" onchange="this.form.submit()">{% for option in columns %}<option value="{{ option.id }}" {% if option.id == subtask.column_id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></form>
-                    <form method="post" action="{% url 'activity_toggle' subtask.id %}">{% csrf_token %}<input type="hidden" name="return_to" value="board"><button class="mini-check" title="{% if subtask.completed %}Reabrir{% else %}Completar{% endif %} subtarea">{% if subtask.completed %}✓{% endif %}</button></form>
+                  <div class="work-ticket {% if task.completed_at %}is-done{% endif %}" data-kind="task" data-id="{{ task.id }}" data-row="task-{{ task.id }}">
+                    <span class="work-drag-handle" aria-hidden="true">⠿</span><span class="work-ticket-name">{{ task.title }}</span>
+                    <form method="post" action="{% url 'task_move' task.id %}" class="work-status-form">{% csrf_token %}<select name="column_id" aria-label="Estado de {{ task.title }}" onchange="this.form.requestSubmit()">{% for option in columns %}<option value="{{ option.id }}" {% if option.id == task.column_id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></form>
                   </div>
                 {% endif %}
               </div>
             {% endfor %}
-          {% endfor %}
-        {% else %}
-          <div class="row-label"><strong>{{ task.title }}</strong><small>Tarea simple</small></div>
-          {% for cell in task.cells %}
-            <div class="board-cell drop-cell" data-column="{{ cell.column.id }}" data-row="task-{{ task.id }}">
-              {% if cell.active %}
-                <div class="board-item simple-item {% if task.is_overdue %}overdue{% endif %}" draggable="true" data-kind="task" data-id="{{ task.id }}" data-row="task-{{ task.id }}">
-                  <span class="drag-handle" aria-hidden="true">⋮⋮</span><a href="{% url 'task_detail' task.id %}">{{ task.title }}</a>
-                  <form method="post" action="{% url 'task_move' task.id %}" class="status-form">{% csrf_token %}<select name="column_id" aria-label="Estado de {{ task.title }}" onchange="this.form.submit()">{% for option in columns %}<option value="{{ option.id }}" {% if option.id == task.column_id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></form>
-                  <a href="{% url 'task_edit' task.id %}" title="Editar">•••</a>
-                </div>
-              {% endif %}
-            </div>
-          {% endfor %}
+          </div>
         {% endif %}
+      </section>
       {% empty %}
-        <div class="board-empty">Esta lista aún no tiene tareas. Crea una para empezar.</div>
+        <div class="work-empty"><span>✓</span><h2>{% if query %}Sin resultados{% else %}Empieza con una tarea{% endif %}</h2><p>{% if query %}Prueba otra búsqueda.{% else %}Crea una tarea y divide el trabajo en subtareas si lo necesitas.{% endif %}</p></div>
       {% endfor %}
     </div>
-    <p class="board-help">Arrastra cada subtarea entre estados. La tarea principal se completará al terminar todas. Las tareas simples se mueven directamente.</p>
   </section>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/kanban.js' %}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/kanban.js' %}?v=2"></script>{% endblock %}

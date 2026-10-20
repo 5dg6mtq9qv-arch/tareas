@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import ActivityForm, BoardForm, NotificationSettingsForm, TaskForm
 from .models import Activity, Board, Column, NotificationSettings, Task
+from .progress import progress_by_board, task_progress
 
 
 def _ensure_default_board(user):
@@ -65,10 +66,21 @@ def _sync_task_from_subtasks(task):
 def dashboard(request):
     _ensure_default_board(request.user)
     now = timezone.now()
-    boards = Board.objects.filter(owner=request.user).annotate(
+    boards = list(Board.objects.filter(owner=request.user).annotate(
         task_count=Count("tasks", distinct=True),
         completed_count=Count("tasks", filter=Q(tasks__completed_at__isnull=False), distinct=True),
+    ))
+    columns_by_board = {}
+    for column in Column.objects.filter(board__owner=request.user).order_by("position", "id"):
+        columns_by_board.setdefault(column.board_id, []).append(column)
+    all_tasks = list(
+        Task.objects.filter(owner=request.user)
+        .select_related("board", "column")
+        .prefetch_related("activities")
     )
+    board_progress = progress_by_board(all_tasks, columns_by_board)
+    for board in boards:
+        board.progress_percent = board_progress.get(board.pk, 0)
     tasks = Task.objects.filter(owner=request.user).select_related("board", "column")
     pending = tasks.filter(completed_at__isnull=True).annotate(
         activity_count=Count("activities", distinct=True),
@@ -80,7 +92,7 @@ def dashboard(request):
     totals = tasks.aggregate(total=Count("id"), completed=Count("id", filter=Q(completed_at__isnull=False)))
     total_tasks = totals["total"] or 0
     completed_tasks = totals["completed"] or 0
-    progress_percent = round((completed_tasks / total_tasks) * 100) if total_tasks else 0
+    progress_percent = round(sum(task.progress_percent for task in all_tasks) / total_tasks) if total_tasks else 0
     return render(request, "tasks/overview.html", {
         "boards": boards,
         "overdue": overdue[:5], "overdue_count": overdue.count(),
@@ -96,19 +108,30 @@ def board_detail(request, pk):
     board = get_object_or_404(Board, pk=pk, owner=request.user)
     boards = Board.objects.filter(owner=request.user).annotate(task_count=Count("tasks"))
     columns = list(board.columns.all())
-    tasks = Task.objects.filter(owner=request.user, board=board).select_related("column").prefetch_related("activities__column")
+    tasks = list(
+        Task.objects.filter(owner=request.user, board=board)
+        .select_related("column").prefetch_related("activities__column")
+    )
     query = request.GET.get("q", "").strip()
-    if query:
-        tasks = tasks.filter(Q(title__icontains=query) | Q(description__icontains=query) | Q(activities__title__icontains=query)).distinct()
     task_rows = []
+    progress_values = []
     for task in tasks:
         subtasks = list(task.activities.all())
         for subtask in subtasks:
             subtask.cells = [{"column": column, "active": subtask.column_id == column.pk} for column in columns]
         task.cells = [{"column": column, "active": task.column_id == column.pk} for column in columns]
         task.subtask_rows = subtasks
-        task_rows.append(task)
-    return render(request, "tasks/dashboard.html", {"boards": boards, "board": board, "columns": columns, "task_rows": task_rows, "query": query})
+        task.progress_percent = task_progress(task, columns, subtasks)
+        progress_values.append(task.progress_percent)
+        if not query or query.casefold() in task.title.casefold() or query.casefold() in task.description.casefold() or any(query.casefold() in subtask.title.casefold() for subtask in subtasks):
+            task_rows.append(task)
+    return render(request, "tasks/dashboard.html", {
+        "boards": boards, "board": board, "columns": columns, "task_rows": task_rows,
+        "board_progress": round(sum(progress_values) / len(progress_values)) if progress_values else 0,
+        "board_task_count": len(tasks),
+        "board_completed_count": sum(bool(task.completed_at) for task in tasks),
+        "query": query,
+    })
 
 
 @login_required

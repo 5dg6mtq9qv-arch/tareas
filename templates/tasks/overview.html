@@ -55,8 +55,8 @@
     <a class="list-card" href="{% url 'board_detail' board.id %}">
       <div class="list-card-head"><span class="list-color" style="background:{{ board.color }}"></span><h3>{{ board.name }}</h3><span>→</span></div>
       <p>{{ board.description|default:"Sin descripción" }}</p>
-      <div class="progress"><span style="width:{% if board.task_count %}{% widthratio board.completed_count board.task_count 100 %}{% else %}0{% endif %}%"></span></div>
-      <footer><span>{{ board.completed_count }} de {{ board.task_count }} completadas</span><strong>{% if board.task_count %}{% widthratio board.completed_count board.task_count 100 %}%{% else %}0%{% endif %}</strong></footer>
+      <div class="progress"><span style="width:{{ board.progress_percent }}%"></span></div>
+      <footer><span>{{ board.completed_count }} de {{ board.task_count }} completadas</span><strong>{{ board.progress_percent }}%</strong></footer>
     </a>
     {% endfor %}
   </div>
