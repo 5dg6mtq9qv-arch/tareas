@@ -54,6 +54,22 @@ class UserIsolationTests(TestCase):
         created = Task.objects.get(title="Nueva tarea")
         self.assertEqual(created.column, self.alice_column)
 
+    def test_new_task_prefills_current_start_but_edit_keeps_empty_date(self):
+        self.client.force_login(self.alice)
+        before = timezone.localtime().replace(second=0, microsecond=0)
+
+        create_page = self.client.get(reverse("task_create"))
+
+        after = timezone.localtime().replace(second=0, microsecond=0)
+        initial_start = create_page.context["form"].initial["start_at"]
+        self.assertLessEqual(before, initial_start)
+        self.assertLessEqual(initial_start, after)
+        self.assertNotIn("due_at", create_page.context["form"].initial)
+        self.assertContains(create_page, initial_start.strftime('%Y-%m-%dT%H:%M'))
+
+        edit_page = self.client.get(reverse("task_edit", args=[self.task.pk]))
+        self.assertIsNone(edit_page.context["form"].initial["start_at"])
+
     def test_user_cannot_toggle_another_users_activity(self):
         activity = Activity.objects.create(task=self.task, title="Paso privado")
         self.client.force_login(self.bob)

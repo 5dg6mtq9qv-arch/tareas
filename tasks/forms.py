@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from .models import Activity, Board, NotificationConfiguration, NotificationSettings, Task
 
@@ -15,8 +16,14 @@ class TaskForm(forms.ModelForm):
         fields = ["board", "title", "description", "start_at", "due_at", "priority"]
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
-            "start_at": DateTimeLocalInput(format="%Y-%m-%dT%H:%M"),
-            "due_at": DateTimeLocalInput(format="%Y-%m-%dT%H:%M"),
+            "start_at": DateTimeLocalInput(
+                format="%Y-%m-%dT%H:%M",
+                attrs={"class": "task-datetime", "autocomplete": "off"},
+            ),
+            "due_at": DateTimeLocalInput(
+                format="%Y-%m-%dT%H:%M",
+                attrs={"class": "task-datetime", "autocomplete": "off"},
+            ),
         }
 
     def __init__(self, *args, user, **kwargs):
@@ -25,6 +32,10 @@ class TaskForm(forms.ModelForm):
         self.fields["due_at"].input_formats = ["%Y-%m-%dT%H:%M"]
         self.fields["board"].queryset = Board.objects.filter(owner=user)
         self.fields["board"].label = "Lista"
+        if not self.is_bound and not self.instance.pk:
+            self.initial.setdefault(
+                "start_at", timezone.localtime().replace(second=0, microsecond=0)
+            )
 
 
 class BoardForm(forms.ModelForm):

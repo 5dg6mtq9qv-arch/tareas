@@ -19,6 +19,8 @@ La interfaz incluye el CSS local de [Tabler 1.4.0](https://github.com/tabler/tab
 
 La conexión se lee de `.env`. El archivo `.env.example` documenta todas las variables y `.env` está excluido de Git.
 
+Al crear una tarea, la fecha de inicio se propone con la fecha y hora locales actuales; la fecha límite queda vacía hasta que se indique. El formulario usa un calendario en español con horario de 24 horas. Para este control se incluyen archivos locales de [Flatpickr 4.6.13](https://flatpickr.js.org/) y su licencia MIT en `static/vendor/flatpickr/LICENSE.md`.
+
 ## Notificaciones
 
 En **Administración** se configuran SMTP, el token del bot de Telegram y las preferencias de cada usuario. Cada usuario también puede cambiar sus canales, chat ID y anticipación desde **Notificaciones**. Para procesar los recordatorios:

@@ -136,7 +136,8 @@ def board_detail(request, pk):
 
 @login_required
 def task_create(request):
-    initial = {"board": request.GET.get("tablero")}
+    default_board = _ensure_default_board(request.user)
+    initial = {"board": request.GET.get("tablero") or default_board.pk}
     form = TaskForm(request.POST or None, user=request.user, initial=initial)
     if request.method == "POST" and form.is_valid():
         task = form.save(commit=False)
@@ -144,13 +145,13 @@ def task_create(request):
         task.column = _first_column(task.board)
         if task.column is None:
             form.add_error("board", "El tablero no tiene estados configurados.")
-            return render(request, "tasks/form.html", {"form": form, "title": "Nueva tarea"})
+            return render(request, "tasks/form.html", {"form": form, "title": "Nueva tarea", "task_form": True})
         task.position = Task.objects.filter(column=task.column).count()
         task.full_clean()
         task.save()
         messages.success(request, "Tarea creada.")
         return redirect("board_detail", pk=task.board_id)
-    return render(request, "tasks/form.html", {"form": form, "title": "Nueva tarea"})
+    return render(request, "tasks/form.html", {"form": form, "title": "Nueva tarea", "task_form": True})
 
 
 @login_required
@@ -165,14 +166,14 @@ def task_edit(request, pk):
             task.column = _first_column(task.board)
             if task.column is None:
                 form.add_error("board", "El tablero no tiene estados configurados.")
-                return render(request, "tasks/form.html", {"form": form, "title": "Editar tarea", "task": task})
+                return render(request, "tasks/form.html", {"form": form, "title": "Editar tarea", "task": task, "task_form": True})
             task.position = Task.objects.filter(column=task.column).count()
             task.completed_at = None
         task.full_clean()
         task.save()
         messages.success(request, "Tarea actualizada.")
         return redirect("board_detail", pk=task.board_id)
-    return render(request, "tasks/form.html", {"form": form, "title": "Editar tarea", "task": task})
+    return render(request, "tasks/form.html", {"form": form, "title": "Editar tarea", "task": task, "task_form": True})
 
 
 @login_required
